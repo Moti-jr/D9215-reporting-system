@@ -37,6 +37,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'd9215',
+    'rest_framework',
 ]
 
 MIDDLEWARE = [
@@ -45,6 +47,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'd9215.middleware.JWTAuthMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -115,3 +118,19 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+
+# JWT settings for simple token handling used by the app
+JWT_SECRET_KEY = SECRET_KEY
+JWT_ALGORITHM = 'HS256'
+# token lifetime in seconds (default 1 hour)
+JWT_EXP_DELTA_SECONDS = 3600
+
+# Names of JWT claims mapping to DB RLS settings
+DISTRICT9215_JWT_CLAIMS = {
+    'role': 'district9215.current_role',
+    'zone': 'district9215.current_zone',
+    'club': 'district9215.current_club_id',
+    'user_id': 'district9215.user_id',
+    'user_ip': 'district9215.user_ip',
+    'current_district': 'district9215.current_district'
+}
