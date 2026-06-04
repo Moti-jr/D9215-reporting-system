@@ -1,7 +1,6 @@
 from django.db import models
 import uuid
-from datetime import timedelta, datetime
-from encrypted_model_fields import EncryptedCharField, EncryptedTextField, EncryptedEmailField, EncryptedDateTimeField
+from encrypted_model_fields import EncryptedEmailField
 
 # Create your models here.
 class audit_logs(models.Model):
@@ -18,7 +17,6 @@ class audit_logs(models.Model):
     class Meta:
         db_table = "d9215.audit_logs"
         managed = False
-
 
     def __str__(self):
         return f"Audit Log {self.log_id} - {self.action_taken} on {self.table_name}"
@@ -159,11 +157,36 @@ class reporting_periods(models.Model):
         return f"{self.label} - {self.district_id.name}"
     
 
+class dockets_types(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    district_id = models.ForeignKey(districts, on_delete=models.PROTECT, related_name='dist_rp_dockets')
+    code =  models.CharField(unique=True, max_length=50, null=False)
+    name = models.CharField(max_length=100, null=False)
+    description = models.TextField()
+    schema_definition = models.JSONField(null=False)
+    is_required = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "d9215.docket_types"
+        managed = False
+
+    def __str__(self):
+        return f"Docket: {self.id} - {self.code} - {self.name}"
+
+
 class reporting_dockets(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    club_id = models.ForeignKey(clubs, on_delete=models.PROTECT, related_name='club_dockets')
+    dockets_type_id = models.ForeignKey(dockets_types, on_delete=models.PROTECT, related_name='rps_per_docket')
+    data = models.JSONField(null=False)
+    
 
     class Meta:
         db_table = "d9215.reporting_dockets"
         managed = False
+
 
 REPORT_STATUS_CHOICES = [
     ("draft", "Draft"),
@@ -178,6 +201,7 @@ class club_reports(models.Model):
     district_id = models.ForeignKey(districts, on_delete=models.PROTECT, related_name='dist_rps')
     club_id = models.ForeignKey(clubs, on_delete=models.PROTECT, related_name='club_rps')
     reporting_period = models.ForeignKey(reporting_periods, on_delete=models.PROTECT, related_name='reports_rp_period')
+    reporting_docket = models.ForeignKey(reporting_dockets, on_delete=models.PROTECT, related_name='club_docket_rps')
 
     status = models.CharField(max_length=25, choices=REPORT_STATUS_CHOICES, default="draft")
     version = models.IntegerField(default=1)
