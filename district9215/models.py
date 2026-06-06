@@ -1,4 +1,4 @@
-from django.db import models
+from django.db import models, connection
 import uuid
 from encrypted_model_fields import EncryptedEmailField
 
@@ -115,7 +115,7 @@ class users(models.Model):
 
 class sessions(models.MOdel):
     id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
-    user_id = models.ForeignKey(users, on_delete=moclaude the 4 council membersdels.PROTECT, related_name='user_sessions')
+    user_id = models.ForeignKey(users, on_delete=models.PROTECT, related_name='user_sessions')
     token_hash  = models.CharField(max_length=255, unique=True, null=False)
     ip_address = models.IPAddressField()
     user_agent = models.CharField(max_length=500)
@@ -147,7 +147,7 @@ class reporting_periods(models.Model):
     closes_at = models.DateTimeField(null=False)
     is_locked = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
-    created_by = models.ForeignKey(users, null=True, blank=True, on_delete=models.PROTECT)
+    created_by = models.ForeignKey(users, null=True, blank=True, on_delete=models.PROTECT, related_name='rp_period_by')
 
     class Meta:
         db_table = "d9215.reporting_periods"
@@ -176,12 +176,15 @@ class dockets_types(models.Model):
         return f"Docket: {self.id} - {self.code} - {self.name}"
 
 
-class reporting_dockets(models.Model):
+class report_dockets(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     club_id = models.ForeignKey(clubs, on_delete=models.PROTECT, related_name='club_dockets')
     dockets_type_id = models.ForeignKey(dockets_types, on_delete=models.PROTECT, related_name='rps_per_docket')
     data = models.JSONField(null=False)
     
+    submitted_by = models.ForeignKey(users, null=True, blank=True, on_delete=models.PROTECT, related_name='rp_docket_by')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = "d9215.reporting_dockets"
@@ -201,7 +204,7 @@ class club_reports(models.Model):
     district_id = models.ForeignKey(districts, on_delete=models.PROTECT, related_name='dist_rps')
     club_id = models.ForeignKey(clubs, on_delete=models.PROTECT, related_name='club_rps')
     reporting_period = models.ForeignKey(reporting_periods, on_delete=models.PROTECT, related_name='reports_rp_period')
-    reporting_docket = models.ForeignKey(reporting_dockets, on_delete=models.PROTECT, related_name='club_docket_rps')
+    reporting_docket = models.ForeignKey(report_dockets, on_delete=models.PROTECT, related_name='club_docket_rps')
 
     status = models.CharField(max_length=25, choices=REPORT_STATUS_CHOICES, default="draft")
     version = models.IntegerField(default=1)
@@ -464,6 +467,93 @@ class club_activity_feed(models.Model):
         return f"Activity {self.activity_type} by {self.actor_id.name} at {self.created_at}"
 
 
+STORIES_TYPE_CHOICES = [
+    ("blog_post","Blog Post"),
+    ("newsletter_feature", "Newsletter Feature"),
+    ("magazine_article", "Magazine Article"),
+    ("social_post","Social Post"),
+    ("district_highlight", "District Highlight")
+]
+STORIES_STATUS_CHOICES = [
+    ("draft", "Draft"),
+    ("pending_review", "Pending Review"),
+    ("revision_requested", "Revision Requested"),
+    ("approved", "Approved"),
+    ("published", "Published")
+]
+
 class stories(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    district_id = models.ForeignKey(districts, on_delete=models.PROTECT)
+    district_id = models.ForeignKey(districts, on_delete=models.PROTECT, related_name='dist_stories')
+    club_id = models.ForeignKey(clubs, on_delete=models.PROTECT, related_name='club_stories')
+    event_id =  models.ForeignKey(events, on_delete=models.PROTECT, related_name='event_stories')
+    project_id = models.ForeignKey(projects, on_delete=models.PROTECT, related_name='project_stories')
+
+    title = models.CharField(max_length=255, null=False, blank=False)
+    body = models.TextField()
+    excerpt = models.CharField(max_length=500)
+    content_type = models.CharField(max_length=50,null=False, blank=False, choices=STORIES_TYPE_CHOICES)
+    status = models.CharField(max_length=25, default='draft', choices=STORIES_STATUS_CHOICES)
+    revision_notes = models.TextField()
+    slug = models.CharField(unique=True)
+    
+    author_name = models.CharField(max_length=200, null=False, blank=False)
+    author_user_id = models.ForeignKey(users, on_delete=models.PROTECT, related_name='author_stories')
+    approved_by = models.ForeignKey(users, on_delete=models.PROTECT, related_name='stories_apptoved__by')
+    approved_at = models.DateTimeField(null=True)
+    published_at = models.DateTimeField(null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(null=True)
+    deleted_at = models.DateTimeField(null=True)
+
+    class Meta:
+        db_table = "d9215.stories"
+        managed = False
+
+    def __str__(self):
+        return f"Story: {self.id} - {self.title} - {self.author_user_id}"
+    
+
+class district_impact_view(models.Model):
+    district_number = models.CharField(max_length=10)
+    month = models.DateTimeField()
+    projects_total = models.IntegerField()
+    projects_completed = models.IntegerField()
+    beneficiaries_total = models.IntegerField()
+    spend_total = models.DecimalField(max_digits=12, decimal_places=2)
+    focus_area = models.CharField(max_length=255)
+    refreshed_at = models.DateTimeField()
+
+    class Meta:
+        db_table = 'd9215.mv_district_impact'
+        managed = False 
+        default_permissions = []
+        ordering = ['month', 'district_number']
+
+    def __str__(self):
+        return f"{self.district_number} - {self.month.date()} - {self.focus_area}"
+    
+
+class club_compliance(models.Model):
+    club_id = models.IntegerField()
+    club_name = models.CharField(max_length=255)
+    zone_loc = models.CharField(max_length=100, blank=True)
+    district_id = models.IntegerField()
+    period_id = models.IntegerField()
+    period_label = models.CharField(max_length=100)
+    report_id = models.IntegerField(blank=True, null=True)
+    report_status = models.CharField(max_length=20, blank=True)
+    submitted_at = models.DateTimeField(blank=True, null=True)
+    has_submitted = models.BooleanField()
+    dockets_submitted = models.IntegerField()
+    dockets_required = models.IntegerField()
+    refreshed_at = models.DateTimeField()
+
+    class Meta:
+        db_table = 'd9215.mv_club_compliance'  
+        managed = False
+        default_permissions = []
+        ordering = ['club_id', 'period_id']
+
+    def __str__(self):
+        return f"{self.club_name} - {self.period_label}"
