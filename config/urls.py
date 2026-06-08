@@ -16,10 +16,10 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
-from d9215 import auth_views
+from shared.auth import views as auth_views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/auth/', include('d9215.auth_urls')),
+    path('api/auth/', include('shared.auth.urls')),
     path('test/protected/', auth_views.protected_test),
 ]
