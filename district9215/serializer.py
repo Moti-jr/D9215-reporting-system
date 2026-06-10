@@ -12,7 +12,9 @@ from .models import (
     event_types,
     events,
     projects,
-    media_assets
+    media_assets,
+    club_compliance,
+    district_impact,
 )
 from rest_framework import serializers
 
@@ -86,6 +88,15 @@ class media_assets_Serializer(serializers.ModelSerializer):
         model = media_assets
         fields = '__all__'
 
+class club_compliance_serializer(serializers.ModelSerializer):
+    class Meta:
+        model = club_compliance
+        fields = '__all__'
 
+class district_impact_serializer(serializers.ModelSerializer):
+    class Meta:
+        model = district_impact
+        fields = '__all__'
 
+        
 

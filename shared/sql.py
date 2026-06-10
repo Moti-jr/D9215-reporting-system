@@ -380,7 +380,7 @@ ADRR_VIEW_ACTIVITY_FEED = base = """
     SELECT f.id, f.club_id, f.actor_id, f.activity_type, f.entity_type, f.entity_id, f.summary, f.created_at
     FROM d9215.club_activity_feed f
     JOIN public.clubs c ON c.id = f.club_id
-    WHERE c.zone_loc = %s      
+    WHERE c.zone_loc = %s      ;
     """
 
 DRR_VIEW_ACTIVITY_FEED = """
@@ -388,4 +388,13 @@ DRR_VIEW_ACTIVITY_FEED = """
     FROM d9215.club_activity_feed
     ORDER BY created_at DESC
     LIMIT %s;
+"""
+
+VIEWSET_COMPLIANCE = """
+    SELECT mv.club_id, mv.club_name, mv.zone_loc, mv.period_label, mv.has_submitted, mv.dockets_submitted, mv.dockets_required,
+    mv.report_status, mv.submitted_at, rp.opens_at, rp.closes_at, rp.is_locked
+    FROM d9215.mv_club_compliance mv
+    JOIN d9215.reporting_periods rp ON rp.id = mv.period_id
+    WHERE mv.period_id = %s
+    ORDER BY mv.zone_loc, mv.club_name;
 """

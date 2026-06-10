@@ -514,7 +514,7 @@ class stories(models.Model):
         return f"Story: {self.id} - {self.title} - {self.author_user_id}"
     
 
-class district_impact_view(models.Model):
+class district_impact(models.Model):
     district_number = models.CharField(max_length=10)
     month = models.DateTimeField()
     projects_total = models.IntegerField()
